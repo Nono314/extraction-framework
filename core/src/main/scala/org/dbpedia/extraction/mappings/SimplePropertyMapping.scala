@@ -106,8 +106,8 @@ extends PropertyMapping
             }
             case "rdf:langString" => // strings with language tags
             {
-              checkMultiplicationFactor("rdf:langString")
-              StringParser
+                checkMultiplicationFactor("rdf:langString")
+                new LangStringParser(context)
             }
             case "xsd:anyURI" =>
             {
@@ -167,6 +167,10 @@ extends PropertyMapping
                 val g = parseResult match
                 {
                     case (value : Double, unit : UnitDatatype) => writeUnitValue(node, value, unit, subjectUri, propertyNode.sourceUri)
+                    case (value : String, lang : Language) => { 
+                        language = lang
+                        writeValue(value, subjectUri, propertyNode.sourceUri) 
+                    }
                     case value => writeValue(value, subjectUri, propertyNode.sourceUri)
                 }
                 graph ++= g
