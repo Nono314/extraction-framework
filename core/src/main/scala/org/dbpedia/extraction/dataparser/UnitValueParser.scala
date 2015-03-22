@@ -5,11 +5,12 @@ import org.dbpedia.extraction.ontology.datatypes.{Datatype, DimensionDatatype, U
 import org.dbpedia.extraction.wikiparser._
 import java.text.ParseException
 import java.util.logging.{Level, Logger}
+import java.util.regex.Pattern
 import org.dbpedia.extraction.ontology.Ontology
 import org.dbpedia.extraction.util.Language
 import org.dbpedia.extraction.mappings.Redirects
-import java.lang.Double
-import org.dbpedia.extraction.config.dataparser.DataParserConfig
+//import java.lang.Double
+import org.dbpedia.extraction.config.dataparser.{DataParserConfig, UnitValueParserConfig}
 import scala.language.reflectiveCalls
 
 class UnitValueParser( extractionContext : {
@@ -32,16 +33,20 @@ class UnitValueParser( extractionContext : {
                                             DataParserConfig.splitPropertyNodeRegexUnitValue.get(language).get
                                           else DataParserConfig.splitPropertyNodeRegexUnitValue.get("en").get
     
+    private val convertTemplates = UnitValueParserConfig.convertTemplateMap.getOrElse(language, UnitValueParserConfig.convertTemplateMap("en"))
+    private val measurementTemplates = UnitValueParserConfig.measurementTemplateMap.getOrElse(language, UnitValueParserConfig.measurementTemplateMap("en"))
+    private val durationTemplate = UnitValueParserConfig.durationMap.getOrElse(language, UnitValueParserConfig.durationMap("en"))
+    
     private val prefix = if(strict) """\s*""" else """[\D]*?"""
 
     private val postfix = if(strict) """\s*""" else ".*"
     
-    private val unitRegexLabels = UnitValueParser.cleanRegex(inputDatatype match
+    private val unitRegexLabels = inputDatatype match
     {
-        case dt : DimensionDatatype => dt.unitLabels.mkString("|")
-        case dt : UnitDatatype => dt.dimension.unitLabels.mkString("|")
+        case dt : DimensionDatatype => dt.unitLabels.toList.sortWith((a,b) => a.length > b.length).map(Pattern.quote).mkString("|")
+        case dt : UnitDatatype => dt.dimension.unitLabels.toList.sortWith((a,b) => a.length > b.length).map(Pattern.quote).mkString("|")
         case dt => throw new IllegalArgumentException("Invalid datatype: " + dt)
-    })
+    }
 
     // Allow leading decimal separator, e.g. .0254 = 0.0254
     // See https://github.com/dbpedia/extraction-framework/issues/71
@@ -198,156 +203,53 @@ class UnitValueParser( extractionContext : {
         var value : Option[String] = None
         var unit : Option[String] = None
         
-        // http://en.wikipedia.org/wiki/Template:Convert
-        // http://it.wikipedia.org/wiki/Template:Converti
-        // {{convert|original_value|original_unit|conversion_unit|round_to|...}}
         // TODO {{convert|3.21|m|cm}} and other occurences of two units help finding the dimension
         // TODO resolve template redirects 
-        if (templateName == "Convert" || templateName == "Converti")
+        for(currentTemplate <- convertTemplates.get(templateName))
         {
-            for (valueProperty <- templateNode.property("1"); unitProperty <- templateNode.property("2"))
+            var valueNum  = currentTemplate.getOrElse("value", "1")
+            var unitNum = currentTemplate.get("unit")
+            var unitVal = currentTemplate.get("cstUnit")
+
+            for (valueProperty <- templateNode.property(valueNum))
             {
-                value = valueProperty.children.collect{case TextNode(text, _) => text}.headOption
-                unit = unitProperty.children.collect{case TextNode(text, _) => text}.headOption
+                val value = UnitValueParser.getPropertyValue(Some(valueProperty), "0")
+                unit = unitNum match
+                {
+                    case Some(un) => templateNode.property(un).get.children.collect{case TextNode(text, _) => text}.headOption
+                    case None => unitVal
+                }
+
+                return generateOutput(value, unit, errors)
             }
         }
-        // http://en.wikipedia.org/wiki/Template:Height
-        // {{height|m=1.77|precision=0}}
-        // {{height|ft=6|in=1}}
-        // {{height|ft=6}}
+    
         // TODO: {{height|ft=5|in=7+1/2}}
-        else if (templateName == "Height")
+        for(templateExclusions <- measurementTemplates.get(templateName))
         {
-            // TODO: Should not be needed anymore, remove?
-            for (property <- templateNode.property("1"))
+            val results = templateNode.keySet.filterNot(templateExclusions.contains(_)) flatMap
             {
-                value = property.children.collect{case TextNode(text, _) => text}.headOption
-                unit = Some(property.key)
+                x => generateOutput(UnitValueParser.getPropertyValue(templateNode.property(x), "0"), Some(x), errors) 
             }
-            // If the TemplateNode has a second PropertyNode ...
-            /*
-            for (secondProperty <- templateNode.property("2"))
+            
+            val res = results.foldLeft((0.0, results.head._2))
             {
-                val secondUnit = secondProperty.key
-                // If the height template contains foot and inch they will converted into centimetres.
-                if (unit == "ft" && secondUnit == "in")
-                {
-                    val secondValue = secondProperty.children.collect{case TextNode(text, _) => text}.headOption
-                    try
-                    {
-                        val ftToCm = value.get.toDouble * 30.48
-                        val inToCm = secondValue.get.toDouble * 2.54
-
-                        value = Some((ftToCm + inToCm).toString)
-                        unit = Some("centimetre")
-                    }
-                    catch { case _ => }
-                }
-            } */
-
-            val defaultValue : PropertyNode = PropertyNode("", List(TextNode("0", 0)), 0)
-
-            // Metre and foot/inch parameters cannot co-exist
-            if (templateNode.property("m").isDefined) {
-                for (metres <- templateNode.property("m"))
-                {
-                    try
-                    {
-                        val mVal = metres.children.collect {case TextNode(text, _) => text}.headOption
-                        val mToCm = mVal.get.toDouble * 100.0
-                        value = Some(mToCm.toString)
-                        unit = Some("centimetre")
-                    }
-                    catch { case _ : Throwable => }
-                }
+              (a, i) => a match
+              {
+                case (value, unit) if (unit == i._2) => (value+i._1, unit)
+                case (value, unit) if (unit.dimension == i._2.dimension) => (unit.toStandardUnit(value) + i._2.toStandardUnit(i._1), unit.dimension.standardUnit.get)
+                case _ => a
+              }
             }
-            else {
-                for (feet <- templateNode.property("ft").orElse(Some(defaultValue));
-                     inch <- templateNode.property("in").orElse(Some(defaultValue)))
-                {
-                    try
-                    {
-                        val ftVal =  feet.children.collect{case TextNode(text, _) => text}.headOption
-                        val ftToCm = ftVal.get.toDouble * 30.48
-                        val inVal =  inch.children.collect{case TextNode(text, _) => text}.headOption
-                        val inToCm = inVal.get.toDouble * 2.54
-
-                        value = Some((ftToCm + inToCm).toString)
-                        unit = Some("centimetre")
-                    }
-                catch { case _ : Throwable => }
-                }
+            
+            if (res._1 != 0.0)
+            {
+                return Some(res)
             }
         }
-        // http://en.wikipedia.org/wiki/Template:Auto_in
-        // {{Auto in|value|round_to}}
-        else if (templateName == "Auto in")
-        {
-            for (valueProperty <- templateNode.property("1"))
-            {
-                value = valueProperty.children.collect{case TextNode(text, _) => text}.headOption
-            }
-            unit = Some("inch")
-        }
-        // http://en.wikipedia.org/wiki/Template:Km_to_mi
-        // {{km to mi|value|...}}
-        else if (templateName == "Km to mi")
-        {
-            for (valueProperty <- templateNode.property("1"))
-            {
-                value = valueProperty.children.collect{case TextNode(text, _) => text}.headOption
-            }
-            unit = Some("kilometre")
-        }
-        // http://en.wikipedia.org/wiki/Template:Km2_to_mi2
-        // {{km2 to mi2|value|...}}
-        else if (templateName == "Km2 to mi2")
-        {
-            for (valueProperty <- templateNode.property("1"))
-            {
-                value = valueProperty.children.collect{case TextNode(text, _) => text}.headOption
-            }
-            unit = Some("square kilometre")
-        }
-        // http://en.wikipedia.org/wiki/Template:Pop_density_km2_to_mi2
-        // {{Pop density km2 to mi2|value|...}}
-        // {{PD km2 to mi2|value|...}}
-        else if (templateName == "Pop density km2 to mi2" || templateName == "Pd km2 to mi2")
-        {
-            for (valueProperty <- templateNode.property("1"))
-            {
-                value = valueProperty.children.collect{case TextNode(text, _) => text}.headOption
-            }
-            unit = Some("inhabitants per square kilometre")
-        }
-        // http://en.wikipedia.org/wiki/Template:Ft_to_m
-        // {{ft to m|value|...}}
-        else if (templateName == "Ft to m")
-        {
-            for (valueProperty <- templateNode.property("1"))
-            {
-                value = valueProperty.children.collect{case TextNode(text, _) => text}.headOption
-            }
-            unit = Some("foot")
-        }
-        // http://en.wikipedia.org/wiki/Template:Ftom
-        // {{ftom|value|...}}
-        else if (templateName == "Ftom")
-        {
-            for (valueProperty <- templateNode.property("1"))
-            {
-                value = valueProperty.children.collect{case TextNode(text, _) => text}.headOption
-            }
-            unit = Some("metre")
-        }
-        // https://en.wikipedia.org/wiki/Template:Duration
-        // {{duration|h=1|m=20|s=32}}
-        // {{duration|m=20|s=32}}
-        // {{duration|1|20|32}}
-        // {{duration||20|32}}
-        //
+        
         // Parameters are optional and their default value is 0
-        else if (templateName == "Duration")
+        if (templateName == durationTemplate)
         {
             val defaultValue = PropertyNode("", List(TextNode("0", 0)), 0)
 
@@ -554,13 +456,9 @@ class UnitValueParser( extractionContext : {
 
 private object UnitValueParser
 {
-    /**
-     * Escapes characters that would otherwise be interpreted as a meta-character in the regex
-     */
-    private def cleanRegex(regex : String) : String =
+    private def getPropertyValue(node : Option[PropertyNode], default:String) : String =
     {
-        regex.replace("""\\""", """\\\\""")
-          .replace("""^""","""\^""")
-          .replace("""$""","""\$""")
+        node.getOrElse(PropertyNode("", List(TextNode(default, 0)), 0)).children
+            .collect{case TextNode(text, _) => text}.headOption.getOrElse(default)
     }
 }
