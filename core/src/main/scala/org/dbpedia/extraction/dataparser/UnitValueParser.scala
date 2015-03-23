@@ -50,46 +50,27 @@ class UnitValueParser( extractionContext : {
 
     // Allow leading decimal separator, e.g. .0254 = 0.0254
     // See https://github.com/dbpedia/extraction-framework/issues/71
-    private val ValueRegex1 = ("""(?iu)""" + prefix + """(-?\.?[0-9]+(?:[\, ][0-9]{3})*(?:\.[0-9]+)?)""" + postfix).r
-
-    // Allow leading decimal separator, e.g. ,0254 = 0,0254
-    // See https://github.com/dbpedia/extraction-framework/issues/71
-    private val ValueRegex2 = ("""(?iu)""" + prefix + """(-?\,?[0-9]+(?:[\. ][0-9]{3})*(?:\,[0-9]+)?)""" + postfix).r
+    private val ValueRegex = ("""(?iu)""" + prefix + """(-?""" + parserUtils.decimalSeparatorsRegex + """?[0-9]+(?:[""" + parserUtils.groupingSeparatorsRegex + """ ][0-9]{3})*(?:""" + parserUtils.decimalSeparatorsRegex + """[0-9]+)?)""" + postfix).r
 
     private val UnitRegex = ("""(?iu)""" + """(?<!\w)(""" + unitRegexLabels + """)(?!/)(?!\\)(?!\w)(?!\d)""").r
     
     /** Merging strings with feet and inches: 'x ft y in' and convert them into centimetres */
-    private val UnitValueRegex1a = ("""(?iu)""" + prefix + """(-?[0-9]+)\040*(?:ft|feet|foot|\047|\054|\140)\040*([0-9]+)\040*(?:in\b|inch\b|inches\b|\047\047|\054\054|\140\140\042)""" + postfix).r
+    private val UnitValueRegex_a = ("""(?iu)""" + prefix + """(-?[0-9]+)\040*(?:ft|feet|foot|\047|\054|\140)\040*([0-9]+)\040*(?:in\b|inch\b|inches\b|\047\047|\054\054|\140\140\042)""" + postfix).r
     
     /** Catches number and unit: e.q. 1,120,500.55 km */
     // Allow leading decimal separator, e.g. .0254 = 0.0254
     // See https://github.com/dbpedia/extraction-framework/issues/71
-    private val UnitValueRegex1b = ("""(?iu)""" + prefix + """(?<!-)(-?\.?[0-9]+(?:[\, ][0-9]{3})*(?:\.[0-9]+)?)(?:&nbsp;)*\040*\(?\[?\[?(""" + unitRegexLabels +
+    private val UnitValueRegex_b = ("""(?iu)""" + prefix + """(?<!-)(-?""" + parserUtils.decimalSeparatorsRegex + """?[0-9]+(?:[""" + parserUtils.groupingSeparatorsRegex + """ ][0-9]{3})*(?:""" + parserUtils.decimalSeparatorsRegex + """[0-9]+)?)(?:&nbsp;)*\040*\(?\[?\[?(""" + unitRegexLabels +
                                     """)(?!/)(?!\\)(?!\w)""" + postfix).r
     
     /** If different units are present, e.g.: 10 mi. (16.0934 km); the first will be returned */
     //TODO remove?
     // Allow leading decimal separator, e.g. .0254 = 0.0254
     // See https://github.com/dbpedia/extraction-framework/issues/71
-    private val UnitValueRegex1c = ("""(?iu)""" + prefix + """(?<!-)(-?\.?[0-9]+(?:[\, ][0-9]{3})*(?:\.[0-9]+)?)(?:&nbsp;)*\040*\(?\[?\[?(""" + unitRegexLabels +
-                                    """)[\s]*\([\s]*(?:[0-9]+(?:\.[0-9]+)?)[\s]*(?:""" + unitRegexLabels + """)[\s]*\)[\s]*""" + postfix).r
+    private val UnitValueRegex_c = ("""(?iu)""" + prefix + """(?<!-)(-?""" + parserUtils.decimalSeparatorsRegex + """?[0-9]+(?:[""" + parserUtils.groupingSeparatorsRegex + """ ][0-9]{3})*(?:""" + parserUtils.decimalSeparatorsRegex + """[0-9]+)?)(?:&nbsp;)*\040*\(?\[?\[?(""" + unitRegexLabels +
+                                    """)[\s]*\([\s]*(?:[0-9]+(?:""" + parserUtils.decimalSeparatorsRegex + """[0-9]+)?)[\s]*(?:""" + unitRegexLabels + """)[\s]*\)[\s]*""" + postfix).r
                                    
-    /** Catches number and unit: e.q. 1.120.500,55 km */
-    // Allow leading decimal separator, e.g. .0254 = 0.0254
-    // See https://github.com/dbpedia/extraction-framework/issues/71
-    private val UnitValueRegex2b = ("""(?iu)""" + prefix + """(?<!-)(-?\,?[0-9]+(?:[\. ][0-9]{3})*(?:\,[0-9]+)?)(?:&nbsp;)*\040*\(?\[?\[?(""" + unitRegexLabels + """)(?!/)(?!\\)(?!\w)""" + postfix).r
-    
-    /** If different units are present, e.g.: 10 mi. (16.0934 km); the first will be returned */
-    //TODO remove?
-    // Allow leading decimal separator, e.g. .0254 = 0.0254
-    // See https://github.com/dbpedia/extraction-framework/issues/71
-    private val UnitValueRegex2c = ("""(?iu)""" + prefix + """(?<!-)(-?\,?[0-9]+(?:[\. ][0-9]{3})*(?:\,[0-9]+)?)(?:&nbsp;)*\040*\(?\[?\[?(""" + unitRegexLabels +
-                                    """)[\s]*\([\s]*(?:[0-9]+(?:\,[0-9]+)?)[\s]*(?:""" + unitRegexLabels + """)[\s]*\)[\s]*""" + postfix).r
-
-
-    private val PrefixUnitValueRegex1 = ("""(?iu)""" + prefix + """(""" + unitRegexLabels + """)\]?\]?\040*(?<!-)([\-0-9]+(?:\,[0-9]{3})*(?:\.[0-9]+)?)""" + postfix).r
-
-    private val PrefixUnitValueRegex2 = ("""(?iu)""" + prefix + """(""" + unitRegexLabels + """)\]?\]?\040*(?<!-)([\-0-9]+(?:\.[0-9]{3})*(?:\,[0-9]+)?)""" + postfix).r
+    private val PrefixUnitValueRegex = ("""(?iu)""" + prefix + """(""" + unitRegexLabels + """)\]?\]?\040*(?<!-)([\-0-9]+(?:""" + parserUtils.groupingSeparatorsRegex + """[0-9]{3})*(?:""" + parserUtils.decimalSeparatorsRegex + """[0-9]+)?)""" + postfix).r
 
     override def parse(node : Node) : Option[(Double, UnitDatatype)] =
     {
@@ -179,26 +160,6 @@ class UnitValueParser( extractionContext : {
         ///////////////////////////////////////////////////////////////////////////////////////
         // Start of template parsing
         ///////////////////////////////////////////////////////////////////////////////////////
-        // How to:
-        // There are two cases how templates are build
-        //  - only values
-        //    {{convert|original_value|original_unit|conversion_unit|round_to|...}}
-        //  - key and value as a pair connected by "="
-        //    {{height|first_unit=first_value|second_unit=second_value|...}}
-        // The first value after "{{" is the templateName and every "|" will result in a new
-        // PropertyNode of the TemplateNode. The $childrenChilds[][] array contains the
-        // TextNodes of these children.
-        // With $childrenChilds[0][0]->getText() you get the text from the first TextNode of
-        // the first PropertyNode. For example:
-        // {{convert|ORIGINAL_VALUE|original_unit|conversion_unit|round_to|...}} or
-        // {{height|first_unit=FIRST_VALUE|second_unit=second_value|...}}
-        // With $childrenChilds[1][0]->getText() you get the text from the first TextNode
-        // of the second PropertyNode.
-        // With $childrenChilds[0][0]->getParent()->getKey() you get the key of the first
-        // PropertyNode. For example:
-        // {{height|FIRST_UNIT=first_value|second_unit=second_value|...}}
-        // The first case (convert template example) has no key.
-        ///////////////////////////////////////////////////////////////////////////////////////
  
         var value : Option[String] = None
         var unit : Option[String] = None
@@ -220,7 +181,7 @@ class UnitValueParser( extractionContext : {
                     case None => unitVal
                 }
 
-                return generateOutput(value, unit, errors)
+                return generateOutput(value.replaceAll("\\.", ""+parserUtils.defaultDecimalSeparator), unit, errors)
             }
         }
     
@@ -285,21 +246,10 @@ class UnitValueParser( extractionContext : {
 
     private def catchValue(input : String) : Option[String] =
     {
-        if (language == "en" || language == "ja" || language == "zh")
+        input match
         {
-            input match
-            {
-                case ValueRegex1(value) => Some(value)
-                case _ => None
-            }
-        }
-        else
-        {
-            input match
-            {
-                case ValueRegex2(value) => Some(value)
-                case _ => None
-            }
+            case ValueRegex(value) => Some(value)
+            case _ => None
         }
     }
 
@@ -338,44 +288,26 @@ class UnitValueParser( extractionContext : {
 
         val catchPrefixedUnit = inputDimension.name == "Currency"
 
-        // english, japanese and chinese Wikipedia articles
-        // numbers with a . as decimal separator and a , as thousand separator
-        // FIXME: this must not be hard-coded. Use NumberFormat for language locale.
-        if (language == "en" || language == "ja" || language == "zh")
+        input match
         {
-            input match
+            case UnitValueRegex_a(feet, inch) =>
             {
-                case UnitValueRegex1a(feet, inch) =>
+                try
                 {
-                    try
-                    {
-                        val ftToCm = feet.toDouble * 30.48
-                        val inToCm = inch.toDouble * 2.54
-            
-                        generateOutput((ftToCm + inToCm).toString, Some("centimetre"), errors)
-                    }
-                    catch
-                    {
-                        case _ : NumberFormatException => None
-                    }
+                    val ftToCm = feet.toDouble * 30.48
+                    val inToCm = inch.toDouble * 2.54
+
+                    generateOutput((ftToCm + inToCm).toString, Some("centimetre"), errors)
                 }
-                case UnitValueRegex1b(value, unit) => generateOutput(value, Some(unit), errors)
-                case UnitValueRegex1c(value, unit) => generateOutput(value, Some(unit), errors)
-                case PrefixUnitValueRegex1(unit, value) if catchPrefixedUnit => generateOutput(value, Some(unit), errors)
-                case _ => None
+                catch
+                {
+                    case _ : NumberFormatException => None
+                }
             }
-        }
-        // for wikipedia articles in german, french, italian, spanish ...
-        // numbers with a , as decimal separator and a . as thousand separator
-        else
-        {
-            input match
-            {
-                case UnitValueRegex2b(value, unit) => generateOutput(value, Some(unit), errors)
-                case UnitValueRegex2c(value, unit) => generateOutput(value, Some(unit), errors)
-                case PrefixUnitValueRegex2(unit, value) if catchPrefixedUnit => generateOutput(value, Some(unit), errors)
-                case _ => None
-            }
+            case UnitValueRegex_b(value, unit) => generateOutput(value, Some(unit), errors)
+            case UnitValueRegex_c(value, unit) => generateOutput(value, Some(unit), errors)
+            case PrefixUnitValueRegex(unit, value) if catchPrefixedUnit => generateOutput(value, Some(unit), errors)
+            case _ => None
         }
     }
     
