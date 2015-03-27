@@ -21,23 +21,24 @@ class ParserUtils( val context : { def language : Language } )
     } 
     
     private val groupingSeparator = DecimalFormatSymbols.getInstance(context.language.locale).getGroupingSeparator
-    
-    private val defaultDecimalSeparator = DecimalFormatSymbols.getInstance(context.language.locale).getDecimalSeparator
-    private val decimalSeparatorsRegex = ParserUtilsConfig.decimalSeparators.get(context.language.wikiCode) match
+    val groupingSeparatorsRegex = ("["+groupingSeparator+" ]").r 
+      
+    val defaultDecimalSeparator = DecimalFormatSymbols.getInstance(context.language.locale).getDecimalSeparator
+    val decimalSeparatorsRegex = ParserUtilsConfig.decimalSeparators.get(context.language.wikiCode) match
       {
         case Some(sep) => ("["+sep+"]").r
         case None => ("""\"""+defaultDecimalSeparator).r 
       }
 
-
+    private val scalesRegex = scales.keySet.map(Pattern.quote).toList.sortWith((a,b) => a.length > b.length).mkString("|")
     // TODO: use "\s+" instead of "\s?" between number and scale?
     // TODO: in some Asian languages, digits are not separated by thousands but by ten thousands or so...
-    private val regex = ("""(?i)([\D]*)([0-9]+(?:\""" + groupingSeparator + """[0-9]{3})*)(""" + decimalSeparatorsRegex + """[0-9]+)?\s?\[?\[?(""" + scales.keySet.map(Pattern.quote).mkString("|") + """)\]?\]?(.*)""").r
+    private val regex = ("""(?i)([\D]*)([0-9]+(?:""" + groupingSeparatorsRegex + """[0-9]{3})*)(""" + decimalSeparatorsRegex + """[0-9]+)?\s?\[?\[?(""" + scalesRegex + """)\]?\]?(.*)""").r
     
     def parse(str: String): Number = {
       // space is sometimes used as grouping separator
       val cleanedString = decimalSeparatorsRegex.replaceAllIn(str, ""+defaultDecimalSeparator)
-      numberFormat.get.parse(cleanedString.replace(' ', groupingSeparator))
+      numberFormat.get.parse(groupingSeparatorsRegex.replaceAllIn(cleanedString, ""+groupingSeparator))
     }
 
     /**
@@ -51,7 +52,7 @@ class ParserUtils( val context : { def language : Language } )
             {
                 val fraction = if(fract != null) fract.substring(1) else ""
                 val trailingZeros = "0" * (scales(scale.toLowerCase) - fraction.length)
-                begin + integer/*.replace(thousandsSeparator, "")*/ + fraction + trailingZeros + end
+                begin + groupingSeparatorsRegex.replaceAllIn(integer, "") + fraction + trailingZeros + end
             }
             case _ => input
         }

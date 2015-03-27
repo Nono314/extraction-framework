@@ -35,6 +35,7 @@ class UnitValueParser( extractionContext : {
     
     private val convertTemplates = UnitValueParserConfig.convertTemplateMap.getOrElse(language, UnitValueParserConfig.convertTemplateMap("en"))
     private val measurementTemplates = UnitValueParserConfig.measurementTemplateMap.getOrElse(language, UnitValueParserConfig.measurementTemplateMap("en"))
+    private val unitTemplates = UnitValueParserConfig.unitTemplateMap.getOrElse(language, UnitValueParserConfig.unitTemplateMap("en"))
     private val durationTemplate = UnitValueParserConfig.durationMap.getOrElse(language, UnitValueParserConfig.durationMap("en"))
     
     private val prefix = if(strict) """\s*""" else """[\D]*?"""
@@ -165,7 +166,6 @@ class UnitValueParser( extractionContext : {
         var unit : Option[String] = None
         
         // TODO {{convert|3.21|m|cm}} and other occurences of two units help finding the dimension
-        // TODO resolve template redirects 
         for(currentTemplate <- convertTemplates.get(templateName))
         {
             var valueNum  = currentTemplate.getOrElse("value", "1")
@@ -185,6 +185,26 @@ class UnitValueParser( extractionContext : {
             }
         }
     
+        if (unitTemplates.contains(templateName))
+        {
+            unit = Some(( 2 to 7 map { x => UnitValueParser.getPropertyValue(templateNode.property(""+x), "") }).foldRight("") { 
+              (i, a) =>  a match
+              {
+                  case "-1" => "/" + i
+                  case _ => i + a
+              }
+            })
+            for (valueProperty <- templateNode.property("1"))
+            {
+                var value = UnitValueParser.getPropertyValue(Some(valueProperty), "0")
+                for (exp <- templateNode.property("e"))
+                {
+                    value = (value.toDouble * scala.math.pow(10.0, UnitValueParser.getPropertyValue(Some(exp), "0").toDouble)).toString
+                }
+                return generateOutput(value, unit, errors)
+            }
+        }
+
         // TODO: {{height|ft=5|in=7+1/2}}
         for(templateExclusions <- measurementTemplates.get(templateName))
         {

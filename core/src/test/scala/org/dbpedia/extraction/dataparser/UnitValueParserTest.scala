@@ -121,7 +121,15 @@ class UnitValueParserTest extends FlatSpec with ShouldMatchers
     }
     it should "return Length: 0.012 m in 12mm (13in)" in
     {
-        parse("en", "Length", "12mm (13in") should equal (Some(0.012))
+        parse("en", "Length", "12mm (13in)") should equal (Some(0.012))
+    }
+    it should "return Length: 3678000 m in {{M|3678|k|m}}" in
+    {
+        parse("it", "Length", "{{M|3678|k|m}}") should equal (Some(3678000.0))
+    }
+    it should "return Length: 3678000 m in {{M|3,678|e=6||m}}" in
+    {
+        parse("it", "Length", "{{M|3,678|e=6||m}}") should equal (Some(3678000.0))
     }
 
     /**

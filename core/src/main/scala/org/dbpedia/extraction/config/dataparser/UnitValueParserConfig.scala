@@ -103,6 +103,19 @@ object UnitValueParserConfig
       )
     )
     
+    val unitTemplateMap = Map(
+      "en" -> Set[String](),
+      // http://fr.wikipedia.org/wiki/Modèle:Unité
+      // {{unité|325.92|km|2}}
+      // {{unité|90|km||h|-1}}
+      "fr" -> Set("unité", "nombre"),
+      "es" -> Set("unidad"),
+      // http://it.wikipedia.org/wiki/Template:M
+      // {{M|3678|k|m}}
+      // {{M|3,678|e=6||m}}
+      "it" -> Set("m")
+    )
+    
     val durationMap = Map(
       // https://en.wikipedia.org/wiki/Template:Duration
       // {{duration|h=1|m=20|s=32}}
