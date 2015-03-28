@@ -17,6 +17,9 @@ class ParserUtilsTest extends TestCase
 
     // testConvertLargeNumbers("en", "1,234.5 billion", "1234500000000")
     testConvertLargeNumbers("de", "100,5 billion", "100500000000000")
+        
+    testConvertLargeNumbers("fr", "1,234 milliards", "1234000000")
+    testConvertLargeNumbers("fr", "1,234 567 million", "1234567")
 
     // testConvertLargeNumbers("en", "1,234.5 trillion", "1234500000000000")
     // FIXME: this should work, trillion is 10^18 in German

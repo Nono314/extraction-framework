@@ -152,7 +152,7 @@ class UnitValueParser( extractionContext : {
         }
 
         val templateNode = node.asInstanceOf[TemplateNode]
-        val templateName = extractionContext.redirects.resolve(templateNode.title).decoded
+        val templateName = extractionContext.redirects.resolve(templateNode.title).decoded.toLowerCase
 
 
         val childrenChilds = for(child <- node.children) yield
@@ -181,7 +181,7 @@ class UnitValueParser( extractionContext : {
                     case None => unitVal
                 }
 
-                return generateOutput(value.replaceAll("\\.", ""+parserUtils.defaultDecimalSeparator), unit, errors)
+                return generateOutput(value, unit, errors, true)
             }
         }
     
@@ -194,14 +194,15 @@ class UnitValueParser( extractionContext : {
                   case _ => i + a
               }
             })
+            val valueProperty = templateNode.property("1")
             for (valueProperty <- templateNode.property("1"))
             {
                 var value = UnitValueParser.getPropertyValue(Some(valueProperty), "0")
                 for (exp <- templateNode.property("e"))
                 {
-                    value = (value.toDouble * scala.math.pow(10.0, UnitValueParser.getPropertyValue(Some(exp), "0").toDouble)).toString
+                    value = (parserUtils.parse(value).doubleValue * scala.math.pow(10.0, UnitValueParser.getPropertyValue(Some(exp), "0").toDouble)).toString
                 }
-                return generateOutput(value, unit, errors)
+                return generateOutput(value, unit, errors, true)
             }
         }
 
@@ -210,7 +211,7 @@ class UnitValueParser( extractionContext : {
         {
             val results = templateNode.keySet.filterNot(templateExclusions.contains(_)) flatMap
             {
-                x => generateOutput(UnitValueParser.getPropertyValue(templateNode.property(x), "0"), Some(x), errors) 
+                x => generateOutput(UnitValueParser.getPropertyValue(templateNode.property(x), "0"), Some(x), errors, true) 
             }
             
             val res = results.foldLeft((0.0, results.head._2))
@@ -334,13 +335,17 @@ class UnitValueParser( extractionContext : {
     /**
      * Creates the output tuple, the number at 0, the unit at 1.
      */
-    private def generateOutput(valueString : String, unitString : Option[String] = None, errors : Option[ParsingErrors]) : Option[(Double, UnitDatatype)] =
+    private def generateOutput(valueString : String, unitString : Option[String] = None, errors : Option[ParsingErrors], template : Boolean = false) : Option[(Double, UnitDatatype)] =
     {
         val value = 
         {
             try
             {
-                parserUtils.parse(valueString).doubleValue * multiplicationFactor
+              template match
+              { // templates routinely use "." as decimal separator not the locale's default'
+                case true => parserUtils.parse(parserUtils.normalizeSeparator(valueString)).doubleValue * multiplicationFactor
+                case _ => parserUtils.parse(valueString).doubleValue * multiplicationFactor
+              }
             }
             catch
             {

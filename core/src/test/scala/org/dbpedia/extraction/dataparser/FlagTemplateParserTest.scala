@@ -1,8 +1,8 @@
 package org.dbpedia.extraction.dataparser
 
 import org.dbpedia.extraction.sources.WikiPage
-import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.FlatSpec
+import org.scalatest.Matchers
 import org.dbpedia.extraction.wikiparser._
 import org.dbpedia.extraction.util.Language
 import org.dbpedia.extraction.mappings.Redirects
@@ -10,7 +10,7 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
-class FlagTemplateParserTest extends FlatSpec with ShouldMatchers
+class FlagTemplateParserTest extends FlatSpec with Matchers
 {
     "FlagTemplateParser" should "return United States@en" in
     {

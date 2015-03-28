@@ -26,9 +26,6 @@ class DoubleParserTest extends TestCase
         testParse("it", "1,234 567", Some(1.234567))
         testParse("nl", "1,234", Some(1.234))
         testParse("nl", ",12345", Some(0.12345))
-        
-        testParse("en", "1,234.567 millions", Some(1234567000.0))
-        testParse("fr", "1,234 567 millions", Some(1234567.0))
     }
 
     private def testParse( lang : String, value : String, expect : Option[Double] ) : Unit =
