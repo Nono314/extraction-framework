@@ -17,8 +17,18 @@ class DoubleParserTest extends TestCase
         testParse("de", "1.234,5", Some(1234.5))
         testParse("en", ".12345", Some(0.12345))
         testParse("de", ",12345", Some(0.12345))
+        testParse("es", "1.234,5", Some(1234.5))
+        testParse("fr", "123,45", Some(123.45))
+        testParse("fr", "1 234,5", Some(1234.5))
+        testParse("fr", "1234.5", Some(1234.5))
+        testParse("it", "1 234,5", Some(1234.5))
+        testParse("it", "1,234", Some(1.234))
+        testParse("it", "1,234 567", Some(1.234567))
         testParse("nl", "1,234", Some(1.234))
         testParse("nl", ",12345", Some(0.12345))
+        
+        testParse("en", "1,234.567 millions", Some(1234567000.0))
+        testParse("fr", "1,234 567 millions", Some(1234567.0))
     }
 
     private def testParse( lang : String, value : String, expect : Option[Double] ) : Unit =

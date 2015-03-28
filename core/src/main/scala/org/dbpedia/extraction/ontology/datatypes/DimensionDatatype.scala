@@ -21,4 +21,9 @@ class DimensionDatatype(name : String, val units : List[UnitDatatype]) extends D
      * Set of all unit labels
      */
     def unitLabels = labelMap.keySet
+
+    /**
+     * Standard unit of this dimension
+     */
+    def standardUnit = labelMap.values.find(p => p.isInstanceOf[StandardUnitDatatype])
 }

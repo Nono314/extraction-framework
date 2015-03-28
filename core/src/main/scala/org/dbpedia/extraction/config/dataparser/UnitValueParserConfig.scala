@@ -108,7 +108,7 @@ object UnitValueParserConfig
       // http://fr.wikipedia.org/wiki/Modèle:Unité
       // {{unité|325.92|km|2}}
       // {{unité|90|km||h|-1}}
-      "fr" -> Set("unité", "nombre"),
+      "fr" -> Set("unité"),
       "es" -> Set("unidad"),
       // http://it.wikipedia.org/wiki/Template:M
       // {{M|3678|k|m}}
