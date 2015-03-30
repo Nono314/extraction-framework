@@ -1,5 +1,6 @@
 package org.dbpedia.extraction.dataparser
 
+import org.dbpedia.extraction.wikiparser._
 import org.dbpedia.extraction.ontology.datatypes.{UnitDatatype, DimensionDatatype, Datatype}
 import org.dbpedia.extraction.config.dataparser.DurationParserConfig
 import org.dbpedia.extraction.util.Language
@@ -17,6 +18,7 @@ class DurationParser( context : { def language : Language } )
     private val logger = Logger.getLogger(getClass.getName)
 
     private val timeUnits = DurationParserConfig.timesMap.getOrElse(language, DurationParserConfig.timesMap("en"))
+    private val durationTemplates = DurationParserConfig.templatesMap.getOrElse(language, DurationParserConfig.templatesMap("en"))
 
     private val timeUnitsRegex = timeUnits.keys.toList.sortWith((a,b) => a.length > b.length).mkString("|")
 
@@ -25,7 +27,7 @@ class DurationParser( context : { def language : Language } )
     val TimeValueImplicitUnitRegex = ("""^\D*?(-)?\s?(\d+)\s*(""" + timeUnitsRegex + """)\s?(\d\d)(\W\D*?|\W*?)$""").r
 
     // Allow leading decimal separator, e.g. .0254 = 0.0254
-    val TimeValueUnitRegex = ("""(-?[\,\.]?\d[,\.\s\d]*\s*)(""" + timeUnitsRegex + """)(\s|\,|$)""").r
+    val TimeValueUnitRegex = ("""(-?[\,\.]?\d[,\.\s\d]*\s*)(""" + timeUnitsRegex + """)(\s|\,|$|(?=-?[\,\.]?\d))""").r
 
     def parseToSeconds(input : String, inputDatatype : Datatype) : Option[Double] =
     {
@@ -34,6 +36,37 @@ class DurationParser( context : { def language : Language } )
             case Some(duration) => Some(duration.toSeconds)
             case None => None
         }
+    }
+
+    def parseToSeconds(templateNode : TemplateNode, inputDatatype : Datatype) : Option[Double] =
+    {
+        catchTemplate(templateNode, inputDatatype) match
+        {
+            case Some(duration) => Some(duration.toSeconds)
+            case None => None
+        }
+    }
+
+    private def catchTemplate(templateNode : TemplateNode, inputDatatype : Datatype) : Option[Duration] =
+    {
+        val templateName = templateNode.title.decoded.toLowerCase
+
+        if (durationTemplates.contains(templateName))
+        {
+          // Parameters are optional and their default value is 0
+            val defaultValue = PropertyNode("", List(TextNode("0", 0)), 0)
+
+            val hours = templateNode.property("h").getOrElse(templateNode.property("1").getOrElse(defaultValue))
+            val minutes = templateNode.property("m").getOrElse(templateNode.property("2").getOrElse(defaultValue))
+            val seconds = templateNode.property("s").getOrElse(templateNode.property("3").getOrElse(defaultValue))
+
+            return Some(new Duration(hours    = hours.children.collect { case TextNode(t, _) => t }.headOption.getOrElse("0").toDouble, 
+                                     minutes  = minutes.children.collect { case TextNode(t, _ ) => t }.headOption.getOrElse("0").toDouble, 
+                                     seconds  = seconds.children.collect { case TextNode(t, _) => t}.headOption.getOrElse("0").toDouble
+            ))
+        }
+        
+        None
     }
 
     private def parse(input : String, inputDatatype : Datatype) : Option[Duration] =

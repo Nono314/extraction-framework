@@ -36,7 +36,6 @@ class UnitValueParser( extractionContext : {
     private val convertTemplates = UnitValueParserConfig.convertTemplateMap.getOrElse(language, UnitValueParserConfig.convertTemplateMap("en"))
     private val measurementTemplates = UnitValueParserConfig.measurementTemplateMap.getOrElse(language, UnitValueParserConfig.measurementTemplateMap("en"))
     private val unitTemplates = UnitValueParserConfig.unitTemplateMap.getOrElse(language, UnitValueParserConfig.unitTemplateMap("en"))
-    private val durationTemplate = UnitValueParserConfig.durationMap.getOrElse(language, UnitValueParserConfig.durationMap("en"))
     
     private val prefix = if(strict) """\s*""" else """[\D]*?"""
 
@@ -162,6 +161,13 @@ class UnitValueParser( extractionContext : {
         // Start of template parsing
         ///////////////////////////////////////////////////////////////////////////////////////
  
+        inputDatatype match
+        {
+            case dt : DimensionDatatype if (dt.name == "Time") => for(duration <- catchDuration(templateNode)) return Some(duration)
+            case dt : UnitDatatype if (dt.dimension.name == "Time") => for(duration <- catchDuration(templateNode)) return Some(duration)
+            case _ =>
+        }
+            
         var value : Option[String] = None
         var unit : Option[String] = None
         
@@ -185,27 +191,6 @@ class UnitValueParser( extractionContext : {
             }
         }
     
-        if (unitTemplates.contains(templateName))
-        {
-            unit = Some(( 2 to 7 map { x => UnitValueParser.getPropertyValue(templateNode.property(""+x), "") }).foldRight("") { 
-              (i, a) =>  a match
-              {
-                  case "-1" => "/" + i
-                  case _ => i + a
-              }
-            })
-            val valueProperty = templateNode.property("1")
-            for (valueProperty <- templateNode.property("1"))
-            {
-                var value = UnitValueParser.getPropertyValue(Some(valueProperty), "0")
-                for (exp <- templateNode.property("e"))
-                {
-                    value = (parserUtils.parse(value).doubleValue * scala.math.pow(10.0, UnitValueParser.getPropertyValue(Some(exp), "0").toDouble)).toString
-                }
-                return generateOutput(value, unit, errors, true)
-            }
-        }
-
         // TODO: {{height|ft=5|in=7+1/2}}
         for(templateExclusions <- measurementTemplates.get(templateName))
         {
@@ -230,22 +215,27 @@ class UnitValueParser( extractionContext : {
             }
         }
         
-        // Parameters are optional and their default value is 0
-        if (templateName == durationTemplate)
+        if (unitTemplates.contains(templateName))
         {
-            val defaultValue = PropertyNode("", List(TextNode("0", 0)), 0)
-
-            val hours = templateNode.property("h").getOrElse(templateNode.property("1").getOrElse(defaultValue))
-            val minutes = templateNode.property("m").getOrElse(templateNode.property("2").getOrElse(defaultValue))
-            val seconds = templateNode.property("s").getOrElse(templateNode.property("3").getOrElse(defaultValue))
-
-            val h = hours.children.collect { case TextNode(t, _) => t }.headOption.getOrElse("0").toDouble
-            val m = minutes.children.collect { case TextNode(t, _ ) => t }.headOption.getOrElse("0").toDouble
-            val s = seconds.children.collect { case TextNode(t, _) => t}.headOption.getOrElse("0").toDouble
-
-            value = Some((h * 3600.0 + m * 60.0 + s).toString)
-            unit = Some("second")
+            unit = Some(( 2 to 7 map { x => UnitValueParser.getPropertyValue(templateNode.property(""+x), "") }).foldRight("") { 
+              (i, a) =>  a match
+              {
+                  case "-1" => "/" + i
+                  case _ => i + a
+              }
+            })
+            val valueProperty = templateNode.property("1")
+            for (valueProperty <- templateNode.property("1"))
+            {
+                var value = UnitValueParser.getPropertyValue(Some(valueProperty), "0")
+                for (exp <- templateNode.property("e"))
+                {
+                    value = (parserUtils.parse(value).doubleValue * scala.math.pow(10.0, UnitValueParser.getPropertyValue(Some(exp), "0").toDouble)).toString
+                }
+                return generateOutput(value, unit, errors, true)
+            }
         }
+
         // If there is no mapping defined for the template -> return null and log it
         else
         {
@@ -276,7 +266,17 @@ class UnitValueParser( extractionContext : {
 
     private def catchDuration(input : String) : Option[(Double, UnitDatatype)] =
     {
-        durationParser.parseToSeconds(input, inputDatatype) match
+        generateDuration(durationParser.parseToSeconds(input, inputDatatype))
+    }
+    
+    private def catchDuration(templateNode : TemplateNode) : Option[(Double, UnitDatatype)] =
+    {
+        generateDuration(durationParser.parseToSeconds(templateNode, inputDatatype))
+    }
+    
+    private def generateDuration(duration : Option[Double]) : Option[(Double, UnitDatatype)] =
+    {
+        duration match
         {
             case Some(result) => Some((result, extractionContext.ontology.datatypes("second").asInstanceOf[UnitDatatype]))
             case None => None

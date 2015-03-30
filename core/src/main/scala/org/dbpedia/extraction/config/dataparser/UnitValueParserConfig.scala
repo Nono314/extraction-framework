@@ -115,14 +115,4 @@ object UnitValueParserConfig
       // {{M|3,678|e=6||m}}
       "it" -> Set("m")
     )
-    
-    val durationMap = Map(
-      // https://en.wikipedia.org/wiki/Template:Duration
-      // {{duration|h=1|m=20|s=32}}
-      // {{duration|m=20|s=32}}
-      // {{duration|1|20|32}}
-      // {{duration||20|32}}
-      "en" -> "duration",
-      "pt" -> "duração"
-    )
 }

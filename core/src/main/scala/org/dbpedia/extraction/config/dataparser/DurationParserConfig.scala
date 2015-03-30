@@ -12,6 +12,7 @@ object DurationParserConfig
             "sec" -> "second",
             "seconds" -> "second",
             "secs" -> "second",
+            "\"" -> "second",
             "minute" -> "minute",
             "m" -> "minute",
             "min" -> "minute",
@@ -19,6 +20,7 @@ object DurationParserConfig
             "min." -> "minute",
             "mins" -> "minute",
             "minu" -> "minute",
+            "'" -> "minute",
             "hour" -> "hour",
             "h" -> "hour",
             "hours" -> "hour",
@@ -290,5 +292,15 @@ object DurationParserConfig
             "bulan" -> "month",
             "tahun" -> "year"
 		)
+    )
+    
+    val templatesMap = Map(
+      // https://en.wikipedia.org/wiki/Template:Duration
+      // {{duration|h=1|m=20|s=32}}
+      // {{duration|m=20|s=32}}
+      // {{duration|1|20|32}}
+      // {{duration||20|32}}
+      "en" -> Set("duration"),
+      "pt" -> Set("duração", "duration")
     )
 }

@@ -7,13 +7,14 @@ import org.dbpedia.extraction.util.Language
 import org.dbpedia.extraction.ontology.{Ontology, OntologyProperty}
 import org.dbpedia.extraction.ontology.io.OntologyReader
 import org.scalatest.FlatSpec
-import org.scalatest.matchers.{MatchResult, BeMatcher, ShouldMatchers}
+import org.scalatest.Matchers
+import org.scalatest.matchers.{MatchResult, BeMatcher}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import java.io.File
 
 @RunWith(classOf[JUnitRunner])
-class DateIntervalMappingTest extends FlatSpec with ShouldMatchers
+class DateIntervalMappingTest extends FlatSpec with Matchers
 {
     // gYear - Positive Tests - Input is valid
     "DateIntervalMapping" should "return Seq 1995 2002 @en" in
